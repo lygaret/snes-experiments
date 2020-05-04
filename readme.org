@@ -1,0 +1,67 @@
+* experiments with snes
+
+based heavily on [[github:pinobatch/lorom-template]]
+
+** todo [1/11]
+
+- [X] red screen
+- [ ] background tilemap
+- [ ] background scrolling tilemap
+- [ ] sprite + movement
+- [ ] animation loop
+- [ ] sidequest: forth?
+- [ ] random numbers
+- [ ] maze generator - single screen
+- [ ] maze generator - multiscreen with transitions or scrolling
+- [ ] maze + player
+- [ ] inventory management algorithms
+
+/it's ok that these get less specific further out/
+
+** lab notebook
+
+*** getting started, 2020-05-01
+
+- based on prior experiments, start over while studying
+  [[github:pinobatch/lorom-template]]
+
+- cc65 is less magic than wla-65816, including not abstracting the
+  snes header away with directives
+
+- tackling initialization, goal is the *red screen*, mainly just proof
+  that we can run a program with an initialized machine.
+
+**sequence of events**
+
+- the machine starts up in an unknown (possibly forcibly random?) state
+  - we know we're in emulation mode (pretending to be a 6502 rather than 65816)
+
+- machine looks up the reset vector in the cartridge header, and jumps there
+  - cartridge header includes a bunch of info + checksums + 'interrupt vectors'
+  - interrupt vectors are addresses for the machine to jump to
+
+  - on boot, whatever address you leave in the reset vector will be the entry point for your program
+  - same on reset, which is why your program 'starts over'
+    - not sure what the expected state of ram is when reset is hit, if
+      reset doesn't clear ram, maybe reset can be a control?
+
+- reset handler does initialization
+  - get out of 6502 emulation mode
+  - jmps to a bank capable of fastrom access, general speedup
+  - initialize cpu/ppu mmio registers with sane values
+    - the one here is copied from [[github:pinobatch/lorom-template]]
+  - jmps to the main routine (tradtional entry point)
+
+- main right now just sets some cgram info up to change the background to red, and then spins
+
+**fastrom**
+
+- snes carts came in fast and slow variants: slow were cheaper, and had a 200ns delay on ROM access,
+  where as fast carts had a 120ns ROM access delay, and were more expensive
+
+- cart would set a bit in the header to indicate fastrom access
+  - this changes the memory map such that bank $80-> was a mirror of $00-> (with exceptions)
+
+- faster runtime by ensuring that the PBK and DBK point at $80
+  - bank registers for PC and 16-bit address lookups respectively
+  - reset the PBK by long jumping on reset and interrupts (which always happen in $00)
